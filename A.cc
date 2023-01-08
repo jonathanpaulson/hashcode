@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <sstream>
 #include <random>
 #include <cassert>
 using namespace std;
@@ -25,10 +26,6 @@ ostream& operator<<(ostream& o, const vector<ll>& A) {
   o << "]";
   return o;
 }
-
-struct Move;
-struct Swap_Lib;
-struct Swap_Book;
 
 struct Input {
   ll B,L,D;
@@ -68,6 +65,7 @@ struct Input {
   }
 };
 
+struct Move;
 struct Solution {
   vector<ll> L; // permutation of 0..L-1 libraries
   vector<vector<ll>> B; // L permutations of BOOKS[pos]
@@ -76,9 +74,9 @@ struct Solution {
   vector<ll> reads; // how many times each book is read
   ll score;
 
-  //Solution clone() {
-  //  return {vector<ll>(L), vector<vector<ll>>(B), vector<ll>(reads), score};
-  //}
+  Solution clone() {
+    return {vector<ll>(L), vector<vector<ll>>(B), vector<ll>(scanned), vector<ll>(reads), score};
+  }
   static Solution start(const Input& inp) {
     Solution S;
     S.L = vector<ll>(inp.L, 0);
@@ -89,7 +87,7 @@ struct Solution {
     for(ll pos=0; pos<inp.L; pos++) {
       S.B[pos] = vector<ll>(inp.BOOKS[pos].size(), 0);
       for(ll j=0; j<S.B[pos].size(); j++) {
-        S.B[pos][j] = j;
+        S.B[pos][j] = inp.BOOKS[pos][j];
       }
     }
     S.compute_score(inp, false);
@@ -107,16 +105,15 @@ struct Solution {
       cur_day += inp.DELAY[lib];
       ll days_left = inp.D - cur_day;
       if(days_left <= 0) { continue; }
-      ll to_scan = min(days_left * inp.SHIP[lib],
-          static_cast<ll>(B[lib].size()));
+      ll to_scan = days_left * inp.SHIP[lib];
+      new_scanned[lib] = to_scan;
 
-      for(ll j=0; j<to_scan; j++) {
-        ll book = inp.BOOKS[lib][B[lib][j]];
+      for(ll j=0; j<min(to_scan, static_cast<ll>(B[lib].size())); j++) {
+        ll book = B[lib][j];
         if(new_reads[book] == 0) {
           new_score += inp.SCORE[book];
           //cerr << " SCANNING book=" << book << " from library=" << lib << " score=" << score << endl;
         }
-        new_scanned[lib] = to_scan;
         new_reads[book] += 1;
       }
     }
@@ -125,7 +122,13 @@ struct Solution {
         assert(scanned[lib] == new_scanned[lib]);
       }
       for (int book=0; book < inp.B; book++){
+        if(reads[book] != new_reads[book]) {
+          cerr << " book=" << book << " reads[book]=" << reads[book] << " new_reads[book]=" << new_reads[book] << endl;
+        }
         assert(reads[book] == new_reads[book]);
+      }
+      if(score != new_score) {
+        cerr << " score=" << score << " new_score=" << new_score << endl;
       }
       assert(score == new_score);
     }
@@ -134,51 +137,40 @@ struct Solution {
     score = new_score;
   }
 
-  Move* rand_move() {
-    ll lib = r(0, L.size());
-    if (r(0, 2) == 0) {
-      return new Swap_Lib{lib};
+  Move* rand_move();
+
+  void show() {
+    cerr << " L=" << L << endl;
+    for(ll i=0; i<L.size(); i++) {
+      cerr << " B[i]=" << B[i] << endl;
     }
-    if (scanned[lib] <= 0 || scanned[lib] >= B[lib].size()) {
-      return rand_move();
-    }
-    return new Swap_Book{lib, 
-      r(0, scanned[lib]),
-      r(scanned[lib], B[lib].size())}
+    cerr << " score=" << score << endl;
+    cerr << " scanned=" << scanned << endl;
+    cerr << " reads=" << reads << endl;
   }
 };
 
 struct Move {
   virtual void apply(Solution& sol, const Input& inp) = 0;
   virtual void undo(Solution& sol, const Input& inp) = 0;
+  virtual string show() = 0;
+  virtual ~Move() = default;
 };
 
 struct Swap_Lib : Move {
   ll pos;
+  Swap_Lib(ll pos_) : pos(pos_) {}
   void apply(Solution& sol, const Input& inp) {
     // Swap dem libs
-    ll temp = sol.L[pos];
-    sol.L[pos] = sol.L[pos + 1];
-    sol.L[pos + 1] = temp;
+    ll lib1 = sol.L[pos];
+    ll lib2 = sol.L[pos+1];
+    sol.L[pos] = lib2;
+    sol.L[pos + 1] = lib1;
 
-    // how much change sir
-    sol.compute_score(inp, false); // TODO
-  }
-  void undo(Solution& sol, const Input& inp) {
-    apply(sol, inp);
-  }
-};
-
-struct Swap_Book : Move {
-  ll lib;
-  ll pos1;
-  ll pos2;
-  void apply(Solution& sol, const Input& inp) {
-    vector<ll>& books = sol.B[lib];
-    ll book1 = books[pos1];
-    ll book2 = books[pos2];
-    books[pos1] = book2;
-    books[pos2] = book1;
+    // update derived
+    sol.compute_score(inp, false);
+    /*sol.scanned[lib1] -= inp.DELAY[lib2] * inp.SHIP[lib1];
+    sol.scanned[lib2] += inp.DELAY[lib1] * inp.SHIP[lib2];
 
     sol.reads[book1]--;
     sol.reads[book2]++;
@@ -186,14 +178,76 @@ struct Swap_Book : Move {
       sol.score -= inp.SCORE[book1];
     }
     if (sol.reads[book2] == 1) {
-      sol.score += inp.SCORE[book1];
-    }
+      sol.score += inp.SCORE[book2];
+    }*/
+    // check that the delta update is right
     sol.compute_score(inp, true);
   }
   void undo(Solution& sol, const Input& inp) {
     apply(sol, inp);
   }
+  string show() {
+    ostringstream o;
+    o << "SwapLib(" << pos << ")";
+    return o.str();
+  }
 };
+
+struct Swap_Book : Move {
+  ll lib;
+  ll pos1;
+  ll pos2;
+  Swap_Book(ll lib_, ll pos1_, ll pos2_) : lib(lib_), pos1(pos1_), pos2(pos2_) {}
+  void apply(Solution& sol, const Input& inp) {
+    assert(pos1 < sol.scanned[lib]);
+    assert(pos2 >= sol.scanned[lib]);
+
+    // update actual solution
+    vector<ll>& books = sol.B[lib];
+    ll book1 = books[pos1];
+    ll book2 = books[pos2];
+    books[pos1] = book2;
+    books[pos2] = book1;
+
+    // update derived fields
+    sol.reads[book1]--;
+    sol.reads[book2]++;
+    if (sol.reads[book1] == 0) {
+      sol.score -= inp.SCORE[book1];
+    }
+    if (sol.reads[book2] == 1) {
+      sol.score += inp.SCORE[book2];
+    }
+
+    // check that the delta update is right
+    //sol.compute_score(inp, true);
+  }
+  void undo(Solution& sol, const Input& inp) {
+    apply(sol, inp);
+  }
+  string show() {
+    ostringstream o;
+    o << "SwapBook(lib=" << lib << " pos1=" << pos1 << " pos2=" << pos2 << ")";
+    return o.str();
+  }
+};
+
+Move* Solution::rand_move() {
+  if (r(0, 2) == 0) {
+    ll lib = r(0, L.size()-1);
+    return new Swap_Lib{lib};
+  } else {
+    // pick a move within this library that changes the score
+    ll lib = r(0, L.size());
+    // no valid moves for this library; either all books are read or none are
+    if (scanned[lib] <= 0 || scanned[lib] >= B[lib].size()) {
+      return rand_move();
+    }
+    ll book1 = r(0, scanned[lib]);
+    ll book2 = r(scanned[lib], B[lib].size());
+    return new Swap_Book{lib, book1, book2};
+  }
+}
 
 Solution simulated_annealing(const Input& inp) {
   ld t_start = 0;
@@ -207,23 +261,41 @@ Solution simulated_annealing(const Input& inp) {
   };
   //acceptance (when min is better): RNG() < exp((cur_result - new_result) / t), where RNG() returns 0..1 uniformly
   auto P = [](ll s_old, ll s_new, ld t) {
-    return (s_old - s_new) / t;
+    return exp((s_new - s_old) / t);
   };
 
   Solution S = Solution::start(inp);
-  ll kmax = 1000;
+  ll best_cnt = 0;
+  Solution best = S.clone();
+
+  ll kmax = 10000;
   for(ll k=0; k<kmax; k++) {
     ll t = temperature(1.0 - static_cast<ld>(k+1)/kmax);
 
     Move* M = S.rand_move();
+    //S.show();
+    //cerr << "move=" << M->show() << endl;
     ll old_score = S.score;
     M->apply(S, inp);
     ll new_score = S.score;
-    if(!(U(0,1) < P(old_score, new_score, t))) {
+    if(new_score > best.score) {
+      best_cnt++;
+      // TODO: this line is slow
+      best = S;
+    }
+
+    ld p_accept = P(old_score, new_score, t);
+    bool accept = (U(0,1) < p_accept);
+    if(!accept) {
       M->undo(S, inp);
     }
+    if(k%100==0) {
+      cerr << "k=" << k << " S.score=" << S.score << " old_score=" << old_score << " new_score=" << new_score << " p_accept=" << p_accept << " accept=" << accept << endl;
+    }
+    delete M;
   }
-  return S;
+  cerr << " best_updated=" << best_cnt << endl;
+  return best;
 }
 
 int main() {
