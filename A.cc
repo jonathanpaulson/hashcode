@@ -7,8 +7,9 @@ using ll = int64_t;
 using ld = double;
 
 ll r(ll lo, ll hi) {
+  assert(lo < hi);
   static default_random_engine RNG;
-  return uniform_int_distribution<ll>(lo,hi)(RNG);
+  return uniform_int_distribution<ll>(lo,hi - 1)(RNG);
 }
 
 ld U(ld lo, ld hi) {
@@ -24,6 +25,10 @@ ostream& operator<<(ostream& o, const vector<ll>& A) {
   o << "]";
   return o;
 }
+
+struct Move;
+struct Swap_Lib;
+struct Swap_Book;
 
 struct Input {
   ll B,L,D;
@@ -130,7 +135,16 @@ struct Solution {
   }
 
   Move* rand_move() {
-    
+    ll lib = r(0, L.size());
+    if (r(0, 2) == 0) {
+      return new Swap_Lib{lib};
+    }
+    if (scanned[lib] <= 0 || scanned[lib] >= B[lib].size()) {
+      return rand_move();
+    }
+    return new Swap_Book{lib, 
+      r(0, scanned[lib]),
+      r(scanned[lib], B[lib].size())}
   }
 };
 
