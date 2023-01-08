@@ -297,7 +297,7 @@ Solution simulated_annealing(const Input& inp) {
       M->undo(S, inp);
     }
     if(k%1000000==0) {
-      cerr << "k=" << k << " S.score=" << S.score << " old_score=" << old_score << " new_score=" << new_score << " p_accept=" << p_accept << " accept=" << accept << endl;
+      cerr << "k=" << k << " t=" << t << " S.score=" << S.score << " old_score=" << old_score << " new_score=" << new_score << " p_accept=" << p_accept << " accept=" << accept << endl;
     }
     delete M;
   }
