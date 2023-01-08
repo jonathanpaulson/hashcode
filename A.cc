@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <algorithm>
 #include <sstream>
 #include <random>
 #include <cassert>
@@ -83,12 +84,19 @@ struct Solution {
     for(ll pos=0; pos<S.L.size(); pos++) {
       S.L[pos] = pos;
     }
+    sort(S.L.begin(), S.L.end(), [&inp](ll i, ll j) {
+        return inp.DELAY[i] < inp.DELAY[j];
+    });
+
     S.B = vector<vector<ll>>(inp.L, vector<ll>{});
     for(ll pos=0; pos<inp.L; pos++) {
       S.B[pos] = vector<ll>(inp.BOOKS[pos].size(), 0);
       for(ll j=0; j<S.B[pos].size(); j++) {
         S.B[pos][j] = inp.BOOKS[pos][j];
       }
+      sort(S.B[pos].begin(), S.B[pos].end(), [&inp](ll i, ll j) {
+          return inp.SCORE[i] > inp.SCORE[j];
+      });
     }
     S.compute_score(inp, false);
     return S;
