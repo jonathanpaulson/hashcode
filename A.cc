@@ -6,6 +6,11 @@ using namespace std;
 using ll = int64_t;
 using ld = double;
 
+ll r(ll lo, ll hi) {
+  static default_random_engine RNG;
+  return uniform_int_distribution<ll>(lo,hi)(RNG);
+}
+
 ld U(ld lo, ld hi) {
   static default_random_engine RNG;
   return uniform_real_distribution<ld>(lo,hi)(RNG);
