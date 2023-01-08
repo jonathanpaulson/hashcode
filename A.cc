@@ -79,17 +79,20 @@ struct Solution {
     vector<int> SEEN(I.B, false);
     ll cur_day = 0;
     for(ll i=0; i<I.L; i++) {
-      cur_day += I.DELAY[i];
+      ll library = L[i];
+      cur_day += I.DELAY[library];
       ll days_left = I.D - cur_day;
       if(days_left <= 0) { continue; }
-      ll books_left = days_left * I.SHIP[i];
+      ll books_left = days_left * I.SHIP[library];
+      if(books_left > B[library].size()) {
+        books_left = B[library].size();
+      }
       for(ll j=0; j<books_left; j++) {
-        if(j<I.BOOKS[i].size()) {
-          ll book = I.BOOKS[i][j];
-          if(!SEEN[book]) {
-            SEEN[book] = true;
-            score += I.SCORE[book];
-          }
+        ll book = I.BOOKS[library][B[library][j]];
+        if(!SEEN[book]) {
+          SEEN[book] = true;
+          score += I.SCORE[book];
+          cerr << " SCANNING book=" << book << " from library=" << library << " score=" << score << endl;
         }
       }
     }
@@ -100,6 +103,9 @@ struct Solution {
 int main() {
   Input in = Input::read();
   Solution S = Solution::start(in);
+  /*S.L = vector<ll>{1,0};
+  S.B[0] = vector<ll>{0,1,2,3,4};
+  S.B[1] = vector<ll>{3,1,2,0};*/
   in.show();
   cout << S.score(in) << endl;
 }
