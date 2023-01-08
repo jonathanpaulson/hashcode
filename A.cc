@@ -104,7 +104,6 @@ struct Solution {
       ll lib = L[pos];
       cur_day += inp.DELAY[lib];
       ll days_left = inp.D - cur_day;
-      if(days_left <= 0) { continue; }
       ll to_scan = days_left * inp.SHIP[lib];
       new_scanned[lib] = to_scan;
 
@@ -168,20 +167,30 @@ struct Swap_Lib : Move {
     sol.L[pos + 1] = lib1;
 
     // update derived
-    sol.compute_score(inp, false);
-    /*sol.scanned[lib1] -= inp.DELAY[lib2] * inp.SHIP[lib1];
-    sol.scanned[lib2] += inp.DELAY[lib1] * inp.SHIP[lib2];
 
-    sol.reads[book1]--;
-    sol.reads[book2]++;
-    if (sol.reads[book1] == 0) {
-      sol.score -= inp.SCORE[book1];
+    ll old_lib1 = sol.scanned[lib1];
+    sol.scanned[lib1] -= inp.DELAY[lib2] * inp.SHIP[lib1];
+    ll new_lib1 = sol.scanned[lib1];
+    for(ll i = max(new_lib1, ll(0)); i < min(old_lib1, static_cast<ll>(sol.B[lib1].size())); i++) {
+      ll book = sol.B[lib1][i];
+      sol.reads[book]--;
+      if(sol.reads[book]==0) {
+        sol.score -= inp.SCORE[book];
+      }
     }
-    if (sol.reads[book2] == 1) {
-      sol.score += inp.SCORE[book2];
-    }*/
+
+    ll old_lib2 = sol.scanned[lib2];
+    sol.scanned[lib2] += inp.DELAY[lib1] * inp.SHIP[lib2];
+    ll new_lib2 = sol.scanned[lib2];
+    for(ll i = max(old_lib2, ll(0)); i<min(new_lib2, static_cast<ll>(sol.B[lib2].size())); i++) {
+      ll book = sol.B[lib2][i];
+      sol.reads[book]++;
+      if(sol.reads[book]==1) {
+        sol.score += inp.SCORE[book];
+      }
+    }
     // check that the delta update is right
-    sol.compute_score(inp, true);
+    //sol.compute_score(inp, true);
   }
   void undo(Solution& sol, const Input& inp) {
     apply(sol, inp);
@@ -268,7 +277,7 @@ Solution simulated_annealing(const Input& inp) {
   ll best_cnt = 0;
   Solution best = S.clone();
 
-  ll kmax = 10000;
+  ll kmax = 1000000;
   for(ll k=0; k<kmax; k++) {
     ll t = temperature(1.0 - static_cast<ld>(k+1)/kmax);
 
