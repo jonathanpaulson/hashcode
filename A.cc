@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <random>
+#include <cassert>
 using namespace std;
 using ll = int64_t;
 using ld = double;
@@ -30,19 +31,19 @@ struct Input {
     Input in;
     cin >> in.B >> in.L >> in.D;
     in.SCORE = vector<ll>(in.B, 0);
-    for(ll i=0; i<in.B; i++) {
-      cin >> in.SCORE[i];
+    for(ll pos=0; pos<in.B; pos++) {
+      cin >> in.SCORE[pos];
     }
     in.DELAY = vector<ll>(in.L, 0);
     in.SHIP = vector<ll>(in.L, 0);
     in.BOOKS = vector<vector<ll>>(in.L, vector<ll>{});
-    for(ll i=0; i<in.L; i++) {
+    for(ll pos=0; pos<in.L; pos++) {
       ll k;
-      cin >> k >> in.DELAY[i] >> in.SHIP[i];
+      cin >> k >> in.DELAY[pos] >> in.SHIP[pos];
       for(ll j=0; j<k; j++) {
         ll b;
         cin >> b;
-        in.BOOKS[i].push_back(b);
+        in.BOOKS[pos].push_back(b);
       }
     }
     return in;
@@ -51,63 +52,134 @@ struct Input {
   void show() {
     cerr << "B=" << B << " L=" << L << " D=" << D << endl;
     cerr << "S=" << SCORE << endl;
-    for(ll i=0; i<L; i++) {
-      cerr << " delay=" << DELAY[i] << " SHIP=" << SHIP[i] << " BOOKS=" << BOOKS[i] << endl;
+    for(ll pos=0; pos<L; pos++) {
+      cerr << " delay=" << DELAY[pos] << " SHIP=" << SHIP[pos] << " BOOKS=" << BOOKS[pos] << endl;
     }
   }
 };
 
 struct Solution {
   vector<ll> L; // permutation of 0..L-1 libraries
-  vector<vector<ll>> B; // L permutations of BOOKS[i]
+  vector<vector<ll>> B; // L permutations of BOOKS[pos]
+  // Derived
+  vector<ll> scanned; // for each library, how many books it scanned
+  vector<ll> reads; // how many times each book is read
+  ll score;
 
-  static Solution start(const Input& I) {
+  //Solution clone() {
+  //  return {vector<ll>(L), vector<vector<ll>>(B), vector<ll>(reads), score};
+  //}
+  static Solution start(const Input& inp) {
     Solution S;
-    S.L = vector<ll>(I.L, 0);
-    for(ll i=0; i<S.L.size(); i++) {
-      S.L[i] = i;
+    S.L = vector<ll>(inp.L, 0);
+    for(ll pos=0; pos<S.L.size(); pos++) {
+      S.L[pos] = pos;
     }
-    S.B = vector<vector<ll>>(I.L, vector<ll>{});
-    for(ll i=0; i<I.L; i++) {
-      S.B[i] = vector<ll>(I.BOOKS[i].size(), 0);
-      for(ll j=0; j<S.B[i].size(); j++) {
-        S.B[i][j] = j;
+    S.B = vector<vector<ll>>(inp.L, vector<ll>{});
+    for(ll pos=0; pos<inp.L; pos++) {
+      S.B[pos] = vector<ll>(inp.BOOKS[pos].size(), 0);
+      for(ll j=0; j<S.B[pos].size(); j++) {
+        S.B[pos][j] = j;
       }
     }
+    S.compute_score(inp, false);
     return S;
   }
 
   // how many points do we get in D days
-  ll score(const Input& I) {
-    ll score = 0;
-    vector<int> SEEN(I.B, false);
+  void compute_score(const Input& inp, bool check) {
+    ll new_score = 0;
+    vector<ll> new_reads(inp.B, 0);
+    vector<ll> new_scanned(inp.L, 0);
     ll cur_day = 0;
-    for(ll i=0; i<I.L; i++) {
-      ll library = L[i];
-      cur_day += I.DELAY[library];
-      ll days_left = I.D - cur_day;
+    for(ll pos=0; pos<inp.L; pos++) {
+      ll lib = L[pos];
+      cur_day += inp.DELAY[lib];
+      ll days_left = inp.D - cur_day;
       if(days_left <= 0) { continue; }
-      ll books_left = days_left * I.SHIP[library];
-      if(books_left > B[library].size()) {
-        books_left = B[library].size();
-      }
-      for(ll j=0; j<books_left; j++) {
-        ll book = I.BOOKS[library][B[library][j]];
-        if(!SEEN[book]) {
-          SEEN[book] = true;
-          score += I.SCORE[book];
-          cerr << " SCANNING book=" << book << " from library=" << library << " score=" << score << endl;
+      ll to_scan = min(days_left * inp.SHIP[lib],
+          static_cast<ll>(B[lib].size()));
+
+      for(ll j=0; j<to_scan; j++) {
+        ll book = inp.BOOKS[lib][B[lib][j]];
+        if(new_reads[book] == 0) {
+          new_score += inp.SCORE[book];
+          //cerr << " SCANNING book=" << book << " from library=" << lib << " score=" << score << endl;
         }
+        new_scanned[lib] = to_scan;
+        new_reads[book] += 1;
       }
     }
-    return score;
+    if (check) {
+      for (int lib=0; lib < inp.L; lib++){
+        assert(scanned[lib] == new_scanned[lib]);
+      }
+      for (int book=0; book < inp.B; book++){
+        assert(reads[book] == new_reads[book]);
+      }
+      assert(score == new_score);
+    }
+    scanned = new_scanned;
+    reads = new_reads;
+    score = new_score;
+  }
+
+  Move* rand_move() {
+    
   }
 };
 
-Solution simulated_annealing(const Input& I) {
+struct Move {
+  virtual void apply(Solution& sol, const Input& inp) = 0;
+  virtual void undo(Solution& sol, const Input& inp) = 0;
+};
+
+struct Swap_Lib : Move {
+  ll pos;
+  void apply(Solution& sol, const Input& inp) {
+    // Swap dem libs
+    ll temp = sol.L[pos];
+    sol.L[pos] = sol.L[pos + 1];
+    sol.L[pos + 1] = temp;
+
+    // how much change sir
+    sol.compute_score(inp, false); // TODO
+  }
+  void undo(Solution& sol, const Input& inp) {
+    apply(sol, inp);
+  }
+};
+
+struct Swap_Book : Move {
+  ll lib;
+  ll pos1;
+  ll pos2;
+  void apply(Solution& sol, const Input& inp) {
+    vector<ll>& books = sol.B[lib];
+    ll book1 = books[pos1];
+    ll book2 = books[pos2];
+    books[pos1] = book2;
+    books[pos2] = book1;
+
+    sol.reads[book1]--;
+    sol.reads[book2]++;
+    if (sol.reads[book1] == 0) {
+      sol.score -= inp.SCORE[book1];
+    }
+    if (sol.reads[book2] == 1) {
+      sol.score += inp.SCORE[book1];
+    }
+    sol.compute_score(inp, true);
+  }
+  void undo(Solution& sol, const Input& inp) {
+    apply(sol, inp);
+  }
+};
+
+Solution simulated_annealing(const Input& inp) {
   ld t_start = 0;
-  for(ll i=0; i<I.B; i++) {
-    t_start += I.SCORE[i];
+  for(ll pos=0; pos<inp.B; pos++) {
+    t_start += inp.SCORE[pos];
   }
   //temp schedule: t = t_start * (t_final / t_start) ^ time_passed, where time_passed is in 0..1
   auto temperature = [&t_start](ld f) {
@@ -119,14 +191,17 @@ Solution simulated_annealing(const Input& I) {
     return (s_old - s_new) / t;
   };
 
-  Solution S = Solution::start(I);
+  Solution S = Solution::start(inp);
   ll kmax = 1000;
   for(ll k=0; k<kmax; k++) {
     ll t = temperature(1.0 - static_cast<ld>(k+1)/kmax);
 
-    Solution S2 = S.adjust();
-    if(U(0,1) < P(S.score(I), S2.score(I), t)) {
-      S = S2;
+    Move* M = S.rand_move();
+    ll old_score = S.score;
+    M->apply(S, inp);
+    ll new_score = S.score;
+    if(!(U(0,1) < P(old_score, new_score, t))) {
+      M->undo(S, inp);
     }
   }
   return S;
@@ -136,5 +211,5 @@ int main() {
   Input in = Input::read();
   Solution S = simulated_annealing(in);
   //in.show();
-  cout << S.score(in) << endl;
+  cout << S.score << endl;
 }
