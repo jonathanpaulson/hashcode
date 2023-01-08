@@ -57,13 +57,49 @@ struct Solution {
   vector<ll> L; // permutation of 0..L-1 libraries
   vector<vector<ll>> B; // L permutations of BOOKS[i]
 
+  static Solution start(const Input& I) {
+    Solution S;
+    S.L = vector<ll>(I.L, 0);
+    for(ll i=0; i<S.L.size(); i++) {
+      S.L[i] = i;
+    }
+    S.B = vector<vector<ll>>(I.L, vector<ll>{});
+    for(ll i=0; i<I.L; i++) {
+      S.B[i] = vector<ll>(I.BOOKS[i].size(), 0);
+      for(ll j=0; j<S.B[i].size(); j++) {
+        S.B[i][j] = j;
+      }
+    }
+    return S;
+  }
+
   // how many points do we get in D days
-  ll score(ll D) {
-    return D;
+  ll score(const Input& I) {
+    ll score = 0;
+    vector<int> SEEN(I.B, false);
+    ll cur_day = 0;
+    for(ll i=0; i<I.L; i++) {
+      cur_day += I.DELAY[i];
+      ll days_left = I.D - cur_day;
+      if(days_left <= 0) { continue; }
+      ll books_left = days_left * I.SHIP[i];
+      for(ll j=0; j<books_left; j++) {
+        if(j<I.BOOKS[i].size()) {
+          ll book = I.BOOKS[i][j];
+          if(!SEEN[book]) {
+            SEEN[book] = true;
+            score += I.SCORE[book];
+          }
+        }
+      }
+    }
+    return score;
   }
 };
 
 int main() {
   Input in = Input::read();
+  Solution S = Solution::start(in);
   in.show();
+  cout << S.score(in) << endl;
 }
