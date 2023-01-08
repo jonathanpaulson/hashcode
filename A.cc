@@ -307,7 +307,7 @@ Solution simulated_annealing(const Input& inp) {
 
 int main() {
   Input in = Input::read();
+  in.show();
   Solution S = simulated_annealing(in);
-  //in.show();
   cout << S.score << endl;
 }
