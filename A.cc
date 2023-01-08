@@ -277,7 +277,7 @@ Solution simulated_annealing(const Input& inp) {
   ll best_cnt = 0;
   Solution best = S.clone();
 
-  ll kmax = 1000000;
+  ll kmax = 10000000;
   for(ll k=0; k<kmax; k++) {
     ld t = temperature(static_cast<ld>(k+1)/kmax);
 
@@ -296,8 +296,8 @@ Solution simulated_annealing(const Input& inp) {
     if(!accept) {
       M->undo(S, inp);
     }
-    if(k%100==0) {
-      cerr << "k=" << k << " t=" << t << " S.score=" << S.score << " old_score=" << old_score << " new_score=" << new_score << " p_accept=" << p_accept << " accept=" << accept << endl;
+    if(k%1000000==0) {
+      cerr << "k=" << k << " S.score=" << S.score << " old_score=" << old_score << " new_score=" << new_score << " p_accept=" << p_accept << " accept=" << accept << endl;
     }
     delete M;
   }
